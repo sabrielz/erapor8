@@ -18,20 +18,23 @@ use App\Models\CatatanWali;
 
 class WalasController extends Controller
 {
-    public function index(){
+    public function index()
+    {
         $function = str_replace('-', '_', request()->aksi);
         $data = $this->{$function}();
         return response()->json($data);
     }
-    public function save(){
+    public function save()
+    {
         $aksi = str_replace('-', '_', request()->aksi);
-        $function = 'simpan_'.$aksi;
+        $function = 'simpan_' . $aksi;
         $data = $this->{$function}();
         return response()->json($data);
     }
-    private function getRombel(){
-        return RombonganBelajar::with(['kurikulum', 'rombel_empat_tahun'])->where(function($query){
-            if(request()->pilihan){
+    private function getRombel()
+    {
+        return RombonganBelajar::with(['kurikulum', 'rombel_empat_tahun'])->where(function ($query) {
+            if (request()->pilihan) {
                 $query->where('jenis_rombel', 16);
             } else {
                 $query->where('jenis_rombel', 1);
@@ -41,18 +44,19 @@ class WalasController extends Controller
             $query->where('sekolah_id', request()->sekolah_id);
         })->first();
     }
-    private function catatan_sikap(){
+    private function catatan_sikap()
+    {
         $budaya_kerja = BudayaKerja::with(['elemen_budaya_kerja'])->get();
         $rombel = $this->getRombel();
-        $data_siswa = ($rombel) ? PesertaDidik::withWhereHas('anggota_rombel', function($query) use ($rombel){
+        $data_siswa = ($rombel) ? PesertaDidik::withWhereHas('anggota_rombel', function ($query) use ($rombel) {
             $query->where('rombongan_belajar_id', $rombel->rombongan_belajar_id);
             $query->with([
-                'nilai_budaya_kerja_guru' => function($query){
+                'nilai_budaya_kerja_guru' => function ($query) {
                     $query->with(['guru', 'budaya_kerja', 'elemen_budaya_kerja']);
                     $query->orderBy('budaya_kerja_id');
                     $query->orderBy('elemen_id');
                 },
-                'all_catatan_budaya_kerja' => function($query){
+                'all_catatan_budaya_kerja' => function ($query) {
                     $query->whereNotNull('budaya_kerja_id');
                 }
             ]);
@@ -65,13 +69,14 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    private function simpan_catatan_sikap(){
+    private function simpan_catatan_sikap()
+    {
         $insert = 0;
-        foreach(request()->uraian_sikap as $uuid => $uraian_sikap){
+        foreach (request()->uraian_sikap as $uuid => $uraian_sikap) {
             $segments = Str::of($uuid)->split('/[\s#]+/');
             $anggota_rombel_id = $segments->first();
             $budaya_kerja_id = $segments->last();
-            if($uraian_sikap){
+            if ($uraian_sikap) {
                 $insert++;
                 CatatanBudayaKerja::updateOrCreate(
                     [
@@ -86,7 +91,7 @@ class WalasController extends Controller
                 );
             }
         }
-        if($insert){
+        if ($insert) {
             $data = [
                 'color' => 'success',
                 'title' => 'Berhasil!',
@@ -101,26 +106,30 @@ class WalasController extends Controller
         }
         return $data;
     }
-    private function callback_anggota_rombel($nama_dudi = NULL){
-        return function($query) use ($nama_dudi){
-            if(request()->rombongan_belajar_id){
+    private function callback_anggota_rombel($nama_dudi = NULL)
+    {
+        return function ($query) use ($nama_dudi) {
+            if (request()->rombongan_belajar_id) {
                 $query->where('rombongan_belajar_id', request()->rombongan_belajar_id);
             } else {
-                $query->whereHas('rombongan_belajar', function($query){
+                $query->whereHas('rombongan_belajar', function ($query) {
                     $query->where('semester_id', request()->semester_id);
                     $query->where('sekolah_id', request()->sekolah_id);
                     $query->where('guru_id', request()->guru_id);
                     $query->where('jenis_rombel', 1);
                 });
             }
-            $query->with(['single_prakerin' => function($query) use ($nama_dudi){
-                if($nama_dudi){
-                    $query->where('mitra_prakerin', $nama_dudi);
+            $query->with([
+                'single_prakerin' => function ($query) use ($nama_dudi) {
+                    if ($nama_dudi) {
+                        $query->where('mitra_prakerin', $nama_dudi);
+                    }
                 }
-            }]);
+            ]);
         };
     }
-    private function praktik_kerja_lapangan(){
+    private function praktik_kerja_lapangan()
+    {
         $rombel = $this->getRombel();
         $tingkat = '';
         $tingkat_allowed = 0;
@@ -130,14 +139,14 @@ class WalasController extends Controller
         $data_dudi = [];
         $merdeka = FALSE;
         $notif = NULL;
-        if($rombel){
+        if ($rombel) {
             $merdeka = merdeka($rombel->kurikulum->nama_kurikulum);
             $tingkat = $rombel->tingkat;
-            if(Str::contains($rombel->kurikulum->nama_kurikulum, '2013')){
+            if (Str::contains($rombel->kurikulum->nama_kurikulum, '2013')) {
                 $tingkat_allowed = 11;
-            } elseif($merdeka){
+            } elseif ($merdeka) {
                 $tingkat_allowed = 12;
-                if(request()->semester_id >= 20222){
+                if (request()->semester_id >= 20222) {
                     $semester_allowed = FALSE;
                 }
                 /*
@@ -147,20 +156,20 @@ class WalasController extends Controller
                 */
             }
             $tingkat = $tingkat_allowed;
-            if($rombel->tingkat >= $tingkat_allowed && $semester_allowed){
+            if ($rombel->tingkat >= $tingkat_allowed && $semester_allowed) {
                 $allowed = TRUE;
-                $data_dudi = Dudi::where('sekolah_id', request()->sekolah_id)->withWhereHas('akt_pd', function($query){
-                    $query->withWhereHas('anggota_akt_pd', function($query){
-                        $query->withWhereHas('siswa', function($query){
+                $data_dudi = Dudi::where('sekolah_id', request()->sekolah_id)->withWhereHas('akt_pd', function ($query) {
+                    $query->withWhereHas('anggota_akt_pd', function ($query) {
+                        $query->withWhereHas('siswa', function ($query) {
                             $query->withWhereHas('anggota_rombel', $this->callback_anggota_rombel());
                         });
                     });
                 })->orderBy('nama')->get();
             } else {
-                if($merdeka){
-                    $notif = 'Kurikulum <strong>'.$rombel->kurikulum->nama_kurikulum.'</strong>, Praktik Kerja Lapangan hanya dapat di entri oleh Pembimbing PKL di menu <strong>Praktik Kerja Lapangan</strong>';
+                if ($merdeka) {
+                    $notif = 'Kurikulum <strong>' . $rombel->kurikulum->nama_kurikulum . '</strong>, Praktik Kerja Lapangan hanya dapat di entri oleh Pembimbing PKL di menu <strong>Praktik Kerja Lapangan</strong>';
                 } else {
-                    $notif = 'Kurikulum <strong>'.$rombel->kurikulum->nama_kurikulum.'</strong>, Praktik Kerja Lapangan hanya untuk kelas <strong>11, 12 dan 13</strong>';
+                    $notif = 'Kurikulum <strong>' . $rombel->kurikulum->nama_kurikulum . '</strong>, Praktik Kerja Lapangan hanya untuk kelas <strong>11, 12 dan 13</strong>';
                 }
             }
             $nama_kurikulum = $rombel->kurikulum->nama_kurikulum;
@@ -177,18 +186,20 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    public function get_data(){
+    public function get_data()
+    {
         $aksi = str_replace('-', '_', request()->data);
-        $function = 'get_'.$aksi;
+        $function = 'get_' . $aksi;
         $data = $this->{$function}();
         return response()->json($data);
     }
-    private function get_anggota_pkl(){
+    private function get_anggota_pkl()
+    {
         $dudi = Dudi::find(request()->dudi_id);
         $callback_anggota_rombel = $this->callback_anggota_rombel($dudi->nama);
-        $callback_anggota_akt_pd = function($query){
-            $query->whereHas('akt_pd', function($query){
-                $query->whereHas('dudi', function($query){
+        $callback_anggota_akt_pd = function ($query) {
+            $query->whereHas('akt_pd', function ($query) {
+                $query->whereHas('dudi', function ($query) {
                     $query->where('dudi.dudi_id', request()->dudi_id);
                 });
             });
@@ -200,7 +211,8 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    public function simpan_praktik_kerja_lapangan(){
+    public function simpan_praktik_kerja_lapangan()
+    {
         $insert = 0;
         request()->validate(
             [
@@ -218,8 +230,8 @@ class WalasController extends Controller
         );
         $dudi = Dudi::find(request()->dudi_id);
         $anggota_id = [];
-        foreach(request()->lokasi_prakerin as $anggota_rombel_id => $lokasi_prakerin){
-            if(isset(request()->lama_prakerin[$anggota_rombel_id]) && isset(request()->lama_prakerin[$anggota_rombel_id]) && isset(request()->keterangan_prakerin[$anggota_rombel_id])){
+        foreach (request()->lokasi_prakerin as $anggota_rombel_id => $lokasi_prakerin) {
+            if (isset(request()->lama_prakerin[$anggota_rombel_id]) && isset(request()->lama_prakerin[$anggota_rombel_id]) && isset(request()->keterangan_prakerin[$anggota_rombel_id])) {
                 $anggota_id[] = $anggota_rombel_id;
                 $insert++;
                 Prakerin::updateOrCreate(
@@ -233,17 +245,17 @@ class WalasController extends Controller
                         'lama_prakerin' => request()->lama_prakerin[$anggota_rombel_id],
                         'skala' => request()->skala[$anggota_rombel_id],
                         'keterangan_prakerin' => request()->keterangan_prakerin[$anggota_rombel_id],
-                        'last_sync'	=> now(),
+                        'last_sync' => now(),
                     ]
                 );
             }
         }
-        Prakerin::where(function($query) use ($dudi, $anggota_id){
+        Prakerin::where(function ($query) use ($dudi, $anggota_id) {
             $query->where('sekolah_id', request()->sekolah_id);
             $query->where('mitra_prakerin', $dudi->nama);
             $query->whereNotIn('anggota_rombel_id', $anggota_id);
         })->delete();
-        if($insert){
+        if ($insert) {
             $data = [
                 'color' => 'success',
                 'title' => 'Berhasil!',
@@ -258,9 +270,10 @@ class WalasController extends Controller
         }
         return $data;
     }
-    public function ketidakhadiran(){
-        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function($query){
-            $query->whereHas('rombongan_belajar', function($query){
+    public function ketidakhadiran()
+    {
+        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function ($query) {
+            $query->whereHas('rombongan_belajar', function ($query) {
                 $query->where('jenis_rombel', 1);
                 $query->where('semester_id', request()->semester_id);
                 $query->where('sekolah_id', request()->sekolah_id);
@@ -273,24 +286,25 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    public function simpan_ketidakhadiran(){
+    public function simpan_ketidakhadiran()
+    {
         $insert = 0;
-        foreach(request()->sakit as $anggota_rombel_id => $sakit){
+        foreach (request()->sakit as $anggota_rombel_id => $sakit) {
             $insert++;
             Absensi::updateOrCreate(
-				[
+                [
                     'anggota_rombel_id' => $anggota_rombel_id
                 ],
-				[
-					'sekolah_id' => request()->sekolah_id,
-					'sakit' 	=> (request()->sakit[$anggota_rombel_id]) ? request()->sakit[$anggota_rombel_id] : 0,
-					'izin'		=> (request()->izin[$anggota_rombel_id]) ? request()->izin[$anggota_rombel_id] : 0,
-					'alpa'		=> (request()->alpa[$anggota_rombel_id]) ? request()->alpa[$anggota_rombel_id] : 0,
-					'last_sync'	=> now(),
-				]
-			);
+                [
+                    'sekolah_id' => request()->sekolah_id,
+                    'sakit' => (request()->sakit[$anggota_rombel_id]) ? request()->sakit[$anggota_rombel_id] : 0,
+                    'izin' => (request()->izin[$anggota_rombel_id]) ? request()->izin[$anggota_rombel_id] : 0,
+                    'alpa' => (request()->alpa[$anggota_rombel_id]) ? request()->alpa[$anggota_rombel_id] : 0,
+                    'last_sync' => now(),
+                ]
+            );
         }
-        if($insert){
+        if ($insert) {
             $data = [
                 'color' => 'success',
                 'title' => 'Berhasil!',
@@ -305,28 +319,31 @@ class WalasController extends Controller
         }
         return $data;
     }
-    public function nilai_ekskul(){
-        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function($query){
-            $query->whereHas('rombongan_belajar', function($query){
+    public function nilai_ekskul()
+    {
+        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function ($query) {
+            $query->whereHas('rombongan_belajar', function ($query) {
                 $query->where('jenis_rombel', 1);
                 $query->where('semester_id', request()->semester_id);
                 $query->where('sekolah_id', request()->sekolah_id);
                 $query->where('guru_id', request()->guru_id);
             });
-            $query->withWhereHas('anggota_ekskul', function($query){
-                $query->whereHas('rombongan_belajar', function($query){
+            $query->withWhereHas('anggota_ekskul', function ($query) {
+                $query->whereHas('rombongan_belajar', function ($query) {
                     $query->where('sekolah_id', request()->sekolah_id);
                     $query->where('semester_id', request()->semester_id);
                     $query->where('jenis_rombel', 51);
                 });
                 $query->with([
-                    'rombongan_belajar' => function($query){
+                    'rombongan_belajar' => function ($query) {
                         $query->where('sekolah_id', request()->sekolah_id);
                         $query->where('semester_id', request()->semester_id);
                         $query->where('jenis_rombel', 51);
-                        $query->with(['kelas_ekskul' => function($query){
-                            $query->with('guru');
-                        }]);
+                        $query->with([
+                            'kelas_ekskul' => function ($query) {
+                                $query->with('guru');
+                            }
+                        ]);
                     },
                     'single_nilai_ekstrakurikuler'
                 ]);
@@ -337,7 +354,8 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    private function opsi_naik(){
+    private function opsi_naik()
+    {
         return [
             [
                 'value' => NULL,
@@ -353,7 +371,8 @@ class WalasController extends Controller
             ],
         ];
     }
-    private function opsi_lulus(){
+    private function opsi_lulus()
+    {
         return [
             [
                 'value' => NULL,
@@ -369,22 +388,23 @@ class WalasController extends Controller
             ],
         ];
     }
-    public function kenaikan_kelas(){
+    public function kenaikan_kelas()
+    {
         $rombel = $this->getRombel();
         $options = $this->opsi_naik();
         $rombel_4_tahun = RombelEmpatTahun::with(['rombongan_belajar'])->where('sekolah_id', request()->sekolah_id)->where('semester_id', request()->semester_id)->get();
-        if($rombel->tingkat >= 12 || $rombel->tingkat == 12 && !$rombel->rombel_empat_tahun){
+        if ($rombel->tingkat >= 12 || $rombel->tingkat == 12 && !$rombel->rombel_empat_tahun) {
             $options = $this->opsi_lulus();
         }
         $jurusan_sp_id = [];
-        foreach($rombel_4_tahun as $r4){
+        foreach ($rombel_4_tahun as $r4) {
             $jurusan_sp_id[] = $r4->rombongan_belajar->jurusan_sp_id;
         }
-        if($rombel->tingkat == 12 && in_array($rombel->jurusan_sp_id, $jurusan_sp_id)){
+        if ($rombel->tingkat == 12 && in_array($rombel->jurusan_sp_id, $jurusan_sp_id)) {
             $options = $this->opsi_naik();
         }
-        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function($query){
-            $query->whereHas('rombongan_belajar', function($query){
+        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function ($query) {
+            $query->whereHas('rombongan_belajar', function ($query) {
                 $query->where('jenis_rombel', 1);
                 $query->where('semester_id', request()->semester_id);
                 $query->where('sekolah_id', request()->sekolah_id);
@@ -401,9 +421,10 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    public function simpan_kenaikan_kelas(){
+    public function simpan_kenaikan_kelas()
+    {
         $insert = 0;
-        foreach(array_filter(request()->status) as $anggota_rombel_id => $status){
+        foreach (array_filter(request()->status) as $anggota_rombel_id => $status) {
             $insert++;
             KenaikanKelas::updateOrCreate(
                 [
@@ -418,7 +439,7 @@ class WalasController extends Controller
                 ]
             );
         }
-        if($insert){
+        if ($insert) {
             $data = [
                 'color' => 'success',
                 'title' => 'Berhasil!',
@@ -433,10 +454,11 @@ class WalasController extends Controller
         }
         return $data;
     }
-    public function cetak_rapor(){
+    public function cetak_rapor()
+    {
         $rombel = $this->getRombel();
-        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function($query){
-            $query->whereHas('rombongan_belajar', function($query){
+        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function ($query) {
+            $query->whereHas('rombongan_belajar', function ($query) {
                 $query->where('jenis_rombel', 1);
                 $query->where('semester_id', request()->semester_id);
                 $query->where('sekolah_id', request()->sekolah_id);
@@ -452,12 +474,13 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    public function unduh_legger(){
+    public function unduh_legger()
+    {
         $rombel = $this->getRombel();
-        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function($query){
+        $data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function ($query) {
             $query->with(['absensi']);
-            $query->whereHas('rombongan_belajar', function($query){
-                if(request()->pilihan){
+            $query->whereHas('rombongan_belajar', function ($query) {
+                if (request()->pilihan) {
                     $query->where('jenis_rombel', 16);
                 } else {
                     $query->where('jenis_rombel', 1);
@@ -466,31 +489,33 @@ class WalasController extends Controller
                 $query->where('sekolah_id', request()->sekolah_id);
                 $query->where('guru_id', request()->guru_id);
             });
-        })->with(['anggota_pilihan' => function($query) use ($rombel){
-            $query->where('semester_id', request()->semester_id);
-            $query->whereHas('rombongan_belajar', function($query) use ($rombel){
-                //$query->where('jenis_rombel', 16);
-                $query->where('jurusan_id', $rombel->jurusan_id);
-            });
-        }])->orderByRaw('LOWER(nama) ASC')->get();
-        $pembelajaran = Pembelajaran::withWhereHas('rombongan_belajar', function($query){
+        })->with([
+                    'anggota_pilihan' => function ($query) use ($rombel) {
+                        $query->where('semester_id', request()->semester_id);
+                        $query->whereHas('rombongan_belajar', function ($query) use ($rombel) {
+                            //$query->where('jenis_rombel', 16);
+                            $query->where('jurusan_id', $rombel->jurusan_id);
+                        });
+                    }
+                ])->orderByRaw('LOWER(nama) ASC')->get();
+        $pembelajaran = Pembelajaran::withWhereHas('rombongan_belajar', function ($query) {
             $query->where('semester_id', request()->semester_id);
             $query->where('sekolah_id', request()->sekolah_id);
             $query->where('guru_id', request()->guru_id);
-            if(request()->pilihan){
+            if (request()->pilihan) {
                 $query->where('jenis_rombel', 16);
             } else {
                 $query->where('jenis_rombel', 1);
             }
         })->with([
-            'all_nilai_akhir_kurmer',
-            'all_nilai_akhir_pengetahuan',
-            'all_nilai_akhir_keterampilan'
-        ])->where(function($query){
-            $query->whereNotNull('kelompok_id');
-            $query->whereNotNull('no_urut');
-            $query->whereNull('induk_pembelajaran_id');
-        })->orderBy('kelompok_id', 'asc')->orderBy('no_urut', 'asc')->get();
+                    'all_nilai_akhir_kurmer',
+                    'all_nilai_akhir_pengetahuan',
+                    'all_nilai_akhir_keterampilan'
+                ])->where(function ($query) {
+                    $query->whereNotNull('kelompok_id');
+                    $query->whereNotNull('no_urut');
+                    $query->whereNull('induk_pembelajaran_id');
+                })->orderBy('kelompok_id', 'asc')->orderBy('no_urut', 'asc')->get();
         $data = [
             'merdeka' => ($rombel) ? merdeka($rombel->kurikulum->nama_kurikulum) : FALSE,
             'rombel' => $rombel,
@@ -501,9 +526,10 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    private function kokurikuler(){
+    private function kokurikuler()
+    {
         $rombel = $this->getRombel();
-        $data_siswa = ($rombel) ? PesertaDidik::withWhereHas('anggota_rombel', function($query) use ($rombel){
+        $data_siswa = ($rombel) ? PesertaDidik::withWhereHas('anggota_rombel', function ($query) use ($rombel) {
             $query->where('rombongan_belajar_id', $rombel->rombongan_belajar_id);
             $query->with('kokurikuler');
         })->orderByRaw('LOWER(nama) ASC')->get() : NULL;
@@ -515,9 +541,10 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    private function catatan_walas(){
+    private function catatan_walas()
+    {
         $rombel = $this->getRombel();
-        $data_siswa = ($rombel) ? PesertaDidik::withWhereHas('anggota_rombel', function($query) use ($rombel){
+        $data_siswa = ($rombel) ? PesertaDidik::withWhereHas('anggota_rombel', function ($query) use ($rombel) {
             $query->where('rombongan_belajar_id', $rombel->rombongan_belajar_id);
             $query->with('catatan_walas');
         })->orderByRaw('LOWER(nama) ASC')->get() : NULL;
@@ -529,9 +556,10 @@ class WalasController extends Controller
         ];
         return $data;
     }
-    private function simpan_kokurikuler(){
+    private function simpan_kokurikuler()
+    {
         $insert = 0;
-        foreach(array_filter(request()->uraian_deskripsi) as $anggota_rombel_id => $uraian_deskripsi){
+        foreach (array_filter(request()->uraian_deskripsi) as $anggota_rombel_id => $uraian_deskripsi) {
             $insert++;
             CatatanWali::updateOrCreate(
                 [
@@ -545,7 +573,7 @@ class WalasController extends Controller
                 ]
             );
         }
-        if($insert){
+        if ($insert) {
             $data = [
                 'color' => 'success',
                 'title' => 'Berhasil!',
@@ -560,9 +588,10 @@ class WalasController extends Controller
         }
         return $data;
     }
-    private function simpan_catatan_walas(){
+    private function simpan_catatan_walas()
+    {
         $insert = 0;
-        foreach(array_filter(request()->uraian_deskripsi) as $anggota_rombel_id => $uraian_deskripsi){
+        foreach (array_filter(request()->uraian_deskripsi) as $anggota_rombel_id => $uraian_deskripsi) {
             $insert++;
             CatatanWali::updateOrCreate(
                 [
@@ -576,7 +605,7 @@ class WalasController extends Controller
                 ]
             );
         }
-        if($insert){
+        if ($insert) {
             $data = [
                 'color' => 'success',
                 'title' => 'Berhasil!',

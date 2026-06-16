@@ -126,7 +126,7 @@ const confirmAlert = () => {
         </template>
         <template v-else-if="error">
           <VAlert title="Pengambilan Dapodik Gagal" type="error" variant="tonal">
-            Status Server: {{ error.message }}
+            Status Server: <span v-html="error.message"></span>
           </VAlert>
         </template>
         <template v-else>

@@ -161,15 +161,15 @@
                     <tbody>
                         <tr>
                             <td>Sakit</td>
-                            <td> : {{ $pd->kehadiran ? $pd->kehadiran->sakit ?? 0 : 0 }} hari</td>
+                            <td> : {{($pd->kehadiran) ? ($pd->kehadiran->sakit == 0 ? '-' : $pd->kehadiran->sakit) : '-'}} hari</td>
                         </tr>
                         <tr>
                             <td>Izin</td>
-                            <td> : {{ $pd->kehadiran ? $pd->kehadiran->izin ?? 0 : 0 }} hari</td>
+                            <td> : {{($pd->kehadiran) ? ($pd->kehadiran->izin == 0 ? '-' : $pd->kehadiran->izin) : '-'}} hari</td>
                         </tr>
                         <tr>
                             <td>Tanpa Keterangan</td>
-                            <td> : {{ $pd->kehadiran ? $pd->kehadiran->alpa ?? 0 : 0 }} hari</td>
+                            <td> : {{($pd->kehadiran) ? ($pd->kehadiran->alpa == 0 ? '-' : $pd->kehadiran->alpa) : '-'}} hari</td>
                         </tr>
                     </tbody>
                 </table>

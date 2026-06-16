@@ -503,6 +503,7 @@ class CetakController extends Controller
 				$query->whereHas('anggota_rombel', function($query) use ($pd){
 					$query->where('peserta_didik_id', $pd->peserta_didik_id);
 				});
+				$query->where('asal', 0);
 			},
 		])->orderBy('kelompok_id')->orderBy('no_urut')->get();
 		$tanggal_rapor = get_setting('tanggal_rapor', request()->route('sekolah_id'), request()->route('semester_id'));
@@ -714,5 +715,149 @@ class CetakController extends Controller
 		$pdf->getMpdf()->WriteHTML($rapor_catatan);
 		$pdf->getMpdf()->allow_charset_conversion = true;
 		return $pdf->stream('RAPOR '.$general_title.'.pdf');
+	}
+	public function download_zip_rapor(Request $request)
+	{
+		$type = $request->query('type');
+		$sekolah_id = $request->query('sekolah_id');
+		$semester_id = $request->query('semester_id');
+		$guru_id = $request->query('guru_id');
+
+		$rombel = RombonganBelajar::with(['kurikulum'])
+			->where('jenis_rombel', 1)
+			->where('semester_id', $semester_id)
+			->where('sekolah_id', $sekolah_id)
+			->where('guru_id', $guru_id)
+			->first();
+
+		if (!$rombel) {
+			abort(404, 'Rombongan Belajar tidak ditemukan');
+		}
+
+		$data_siswa = PesertaDidik::withWhereHas('anggota_rombel', function($query) use ($rombel) {
+			$query->where('rombongan_belajar_id', $rombel->rombongan_belajar_id);
+		})->orderByRaw('LOWER(nama) ASC')->get();
+
+		if ($data_siswa->isEmpty()) {
+			abort(404, 'Data siswa tidak ditemukan');
+		}
+
+		$merdeka = merdeka($rombel->kurikulum->nama_kurikulum);
+		$is_ppa = is_ppa($rombel->semester_id);
+		$is_new_ppa = is_new_ppa($rombel->semester_id);
+
+		$zipFileName = 'Rapor-' . clean($type) . '-' . clean($rombel->nama) . '.zip';
+		$zipPath = storage_path('app/' . $zipFileName);
+
+		if (file_exists($zipPath)) {
+			unlink($zipPath);
+		}
+
+		$zip = new \ZipArchive();
+		if ($zip->open($zipPath, \ZipArchive::CREATE) !== true) {
+			abort(500, 'Gagal membuat file ZIP');
+		}
+
+		foreach ($data_siswa as $siswa) {
+			try {
+				$pdfContent = null;
+				$fileName = '';
+
+				switch ($type) {
+					case 'rapor-cover':
+						$pdfContent = $this->generatePdfContent('rapor_cover', [
+							'peserta_didik_id' => $siswa->peserta_didik_id,
+							'sekolah_id' => $sekolah_id,
+							'semester_id' => $semester_id,
+						]);
+						$fileName = clean(strtoupper($siswa->nama)) . '-IDENTITAS.pdf';
+						break;
+
+					case 'rapor-akademik':
+						if ($is_new_ppa) {
+							$pdfContent = $this->generatePdfContent('rapor_akademik', [
+								'peserta_didik_id' => $siswa->peserta_didik_id,
+								'sekolah_id' => $sekolah_id,
+								'semester_id' => $semester_id,
+							]);
+							$fileName = clean(strtoupper($siswa->nama)) . '-RAPOR-AKADEMIK.pdf';
+						} elseif ($merdeka || $is_ppa) {
+							$pdfContent = $this->generatePdfContent('rapor_nilai_akhir', [
+								'anggota_rombel_id' => $siswa->anggota_rombel->anggota_rombel_id,
+								'sekolah_id' => $sekolah_id,
+								'semester_id' => $semester_id,
+							]);
+							$fileName = clean(strtoupper($siswa->nama)) . '-RAPOR.pdf';
+						} else {
+							$pdfContent = $this->generatePdfContent('rapor_semester', [
+								'anggota_rombel_id' => $siswa->anggota_rombel->anggota_rombel_id,
+								'sekolah_id' => $sekolah_id,
+								'semester_id' => $semester_id,
+							]);
+							$fileName = clean(strtoupper($siswa->nama)) . '-RAPOR.pdf';
+						}
+						break;
+
+					case 'rapor-tengah-semester':
+						$pdfContent = $this->generatePdfContent('rapor_tengah_semester', [
+							'peserta_didik_id' => $siswa->peserta_didik_id,
+							'semester_id' => $semester_id,
+						]);
+						$fileName = clean(strtoupper($siswa->nama)) . '-RAPOR-PTS.pdf';
+						break;
+
+					case 'rapor-p5':
+						$pdfContent = $this->generatePdfContent('rapor_p5', [
+							'anggota_rombel_id' => $siswa->anggota_rombel->anggota_rombel_id,
+							'semester_id' => $semester_id,
+						]);
+						$fileName = clean(strtoupper($siswa->nama)) . '-RAPOR-P5.pdf';
+						break;
+
+					case 'rapor-pelengkap':
+						$pdfContent = $this->generatePdfContent('rapor_pelengkap', [
+							'peserta_didik_id' => $siswa->peserta_didik_id,
+							'sekolah_id' => $sekolah_id,
+							'semester_id' => $semester_id,
+						]);
+						$fileName = clean(strtoupper($siswa->nama)) . '-LAMPIRAN.pdf';
+						break;
+				}
+
+				if ($pdfContent && $fileName) {
+					$zip->addFromString($fileName, $pdfContent);
+				}
+			} catch (\Throwable $th) {
+				// Skip siswa yang gagal di-generate PDF-nya
+				continue;
+			}
+		}
+
+		$zip->close();
+
+		return response()->download($zipPath, $zipFileName, [
+			'Content-Type' => 'application/zip',
+		])->deleteFileAfterSend(true);
+	}
+
+	private function generatePdfContent($method, $params)
+	{
+		// Set route parameters so existing methods can use request()->route()
+		$request = request();
+		$route = $request->route();
+		foreach ($params as $key => $value) {
+			$route->setParameter($key, $value);
+		}
+
+		// rapor_p5 accepts $anggota_rombel_id as direct parameter
+		if ($method === 'rapor_p5') {
+			$response = $this->rapor_p5($params['anggota_rombel_id']);
+		} elseif ($method === 'rapor_nilai_akhir') {
+			$response = $this->rapor_nilai_akhir($request);
+		} else {
+			$response = $this->{$method}();
+		}
+
+		return $response->getContent();
 	}
 }

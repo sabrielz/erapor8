@@ -16,6 +16,7 @@ Route::group(['prefix' => 'downloads'], function () {
     });
 });
 Route::group(['prefix' => 'cetak'], function () {
+    Route::get('/download-zip-rapor', [CetakController::class, 'download_zip_rapor'])->name('download-zip-rapor');
     Route::get('/sertifikat/{anggota_rombel_id}/{rencana_ukk_id}', [CetakController::class, 'sertifikat'])->name('sertifikat');
     Route::get('/rapor-cover/{anggota_rombel_id}/{rombongan_belajar_id?}', [CetakController::class, 'rapor_cover'])->name('rapor-cover');
     Route::get('/rapor-semester/{anggota_rombel_id}/{sekolah_id}/{semester_id}', [CetakController::class, 'rapor_semester'])->name('rapor-semester');

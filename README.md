@@ -182,9 +182,9 @@ Kemudian ganti dengan kode ini:
 ```
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
+MAIL_PORT=465
 MAIL_USERNAME=eraporsmk@gmail.com
-MAIL_PASSWORD="twvv dabv jimx mykw"
+MAIL_PASSWORD=djpnstydwafqkygv
 MAIL_ENCRYPTION=ssl
 MAIL_FROM_ADDRESS=eraporsmk@gmail.com
 MAIL_FROM_NAME="${APP_NAME}"

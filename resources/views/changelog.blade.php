@@ -1,5 +1,19 @@
 <div class="changelog">
     <legend>
+        <h3>Versi 8.0.3</h3>
+    </legend>
+    <ol>
+        <li><b class="text-success">[Pembaharuan]</b> Form Registrasi ditutup. Proses Registrasi hanya melalui aplikasi
+            Synchronizer v.2
+        </li>
+        <li><b class="text-success">[Pembaharuan]</b> Pengambilan Dapodik ditutup. Proses Pengambilan Dapodik hanya
+            melalui
+            aplikasi
+            Synchronizer v.2
+        </li>
+        <li><b class="text-error">[Perbaikan]</b> Deskripsi mata pelajaran sub mapel</li>
+    </ol>
+    <legend>
         <h3>Versi 8.0.2</h3>
     </legend>
     <ol>

@@ -1,4 +1,5 @@
 <?php
+set_time_limit(0);
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Models\Semester;
@@ -693,6 +694,14 @@ function simpan_rombel($data){
     insert_kurikulum($data->kurikulum);
     insert_rombel($data);
 }
+function simpan_rombongan_belajar($data){
+    $data = array_to_object($data);
+    if($data->jurusan_sp){
+        insert_jurusan($data->jurusan_sp->jurusan);
+    }
+    insert_kurikulum($data->kurikulum);
+    insert_rombel($data);
+}
 function simpan_mapel($data){
     MataPelajaran::updateOrCreate(
         [
@@ -783,6 +792,10 @@ function simpan_pd_keluar($data){
     );
 }
 function simpan_pd_aktif($data){
+    $data = array_to_object($data);
+    simpan_pd($data, NULL);
+}
+function simpan_peserta_didik_aktif($data){
     $data = array_to_object($data);
     simpan_pd($data, NULL);
 }
@@ -1014,4 +1027,9 @@ function simpan_anggota_matpil($data){
     if($pd && $rombel){
         simpan_anggota_rombel($data, NULL);
     }
+}
+function simpan_cek_sekolah($data){
+    $data = array_to_object($data);
+    $sekolah = Sekolah::find($data->sekolah_id);
+    return $sekolah;
 }

@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+set_time_limit(0);
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -14,6 +14,10 @@ use App\Models\Pembelajaran;
 use App\Models\MatevRapor;
 use App\Models\SyncLog;
 use App\Models\Setting;
+use App\Models\MstWilayah;
+use App\Models\User;
+use App\Models\Role;
+use App\Models\Team;
 use Carbon\Carbon;
 use Storage;
 use Artisan;
@@ -160,7 +164,7 @@ class SinkronisasiController extends Controller
         return response()->json($data);
     }
     public function data_dapodik(){
-        try {
+        /*try {
             $semester = Semester::find(request()->semester_id);
             $user = auth()->user();
             $data_sync = [
@@ -191,7 +195,12 @@ class SinkronisasiController extends Controller
                 'dapodik' => [],
                 'message' => $e->getMessage(),
             ];
-        }
+        }*/
+        $data = [
+            'error' => TRUE,
+            'dapodik' => [],
+            'message' => 'Pengambilan Dapodik ditutup. Proses Pengambilan Dapodik hanya melalui aplikasi Synchronizer v.2. Silahkan unduh <a href="https://s.id/eRaporSMK8154" target="_blank">disini</a>',
+        ];
         return $data;
     }
     private function ref_erapor(){
@@ -747,13 +756,152 @@ class SinkronisasiController extends Controller
         $items = json_decode(prepare_receive(request()->json));
         $function = 'simpan_'.str_replace('-', '_', request()->table);
         $result = [];
-        foreach($items as $k => $item){
-            $result[] = $function($item);
+        if(is_array($items)){
+            foreach($items as $k => $item){
+                $result[] = $function($item);
+            }
         }
         $data = [
             'json' => $items,
 			//'result' => $result,
         ];
         return response()->json($data);
+    }
+    public function register(){
+        $data = $this->create_user(request()->sekolah);
+        return response()->json($data);
+    }
+    private function create_user($data){
+        $data = array_to_object($data);
+        $email = $data->pengguna->username;
+        $password = $data->pengguna->password;
+        $set_data = $data;
+        $bentuk_pendidikan = config('erapor.bentuk_pendidikan');
+        $allowed = FALSE;
+        if($bentuk_pendidikan){
+            if(in_array($set_data->bentuk_pendidikan_id, $bentuk_pendidikan)){
+                $allowed = TRUE;
+            }
+        }
+        if($allowed){
+            $get_kode_wilayah = $set_data->wilayah;
+            $kode_wilayah = $set_data->kode_wilayah;
+            $kecamatan = '-';
+            $kabupaten = '-';
+            $provinsi = '-';
+            if($get_kode_wilayah){
+                $kode_wilayah = $get_kode_wilayah->kode_wilayah;
+                if($get_kode_wilayah->parrent_recursive){
+                    $kecamatan = $get_kode_wilayah->parrent_recursive->nama;
+                    if($get_kode_wilayah->parrent_recursive->parrent_recursive){
+                        $kabupaten = $get_kode_wilayah->parrent_recursive->parrent_recursive->nama;
+                        if($get_kode_wilayah->parrent_recursive->parrent_recursive->parrent_recursive){
+                            $provinsi = $get_kode_wilayah->parrent_recursive->parrent_recursive->parrent_recursive->nama;
+                            MstWilayah::updateOrCreate(
+                                [
+                                    'kode_wilayah' => $get_kode_wilayah->parrent_recursive->parrent_recursive->parrent_recursive->kode_wilayah,
+                                ],
+                                [
+                                    'nama' => $get_kode_wilayah->parrent_recursive->parrent_recursive->parrent_recursive->nama,
+                                    'id_level_wilayah' => $get_kode_wilayah->parrent_recursive->parrent_recursive->parrent_recursive->id_level_wilayah,
+                                    'mst_kode_wilayah' => $get_kode_wilayah->parrent_recursive->parrent_recursive->parrent_recursive->mst_kode_wilayah,
+                                    'negara_id' => $get_kode_wilayah->parrent_recursive->parrent_recursive->parrent_recursive->negara_id,
+                                    'last_sync' => now(),
+                                ]
+                            );
+                        }
+                        MstWilayah::updateOrCreate(
+                            [
+                                'kode_wilayah' => $get_kode_wilayah->parrent_recursive->parrent_recursive->kode_wilayah,
+                            ],
+                            [
+                                'nama' => $get_kode_wilayah->parrent_recursive->parrent_recursive->nama,
+                                'id_level_wilayah' => $get_kode_wilayah->parrent_recursive->parrent_recursive->id_level_wilayah,
+                                'mst_kode_wilayah' => $get_kode_wilayah->parrent_recursive->parrent_recursive->mst_kode_wilayah,
+                                'negara_id' => $get_kode_wilayah->parrent_recursive->parrent_recursive->negara_id,
+                                'last_sync' => now(),
+                            ]
+                        );
+                    }
+                    MstWilayah::updateOrCreate(
+                        [
+                            'kode_wilayah' => $get_kode_wilayah->parrent_recursive->kode_wilayah,
+                        ],
+                        [
+                            'nama' => $get_kode_wilayah->parrent_recursive->nama,
+                            'id_level_wilayah' => $get_kode_wilayah->parrent_recursive->id_level_wilayah,
+                            'mst_kode_wilayah' => $get_kode_wilayah->parrent_recursive->mst_kode_wilayah,
+                            'negara_id' => $get_kode_wilayah->parrent_recursive->negara_id,
+                            'last_sync' => now(),
+                        ]
+                    );
+                }
+                MstWilayah::updateOrCreate(
+                    [
+                        'kode_wilayah' => $get_kode_wilayah->kode_wilayah,
+                    ],
+                    [
+                        'nama' => $get_kode_wilayah->nama,
+                        'id_level_wilayah' => $get_kode_wilayah->id_level_wilayah,
+                        'mst_kode_wilayah' => $get_kode_wilayah->mst_kode_wilayah,
+                        'negara_id' => $get_kode_wilayah->negara_id,
+                        'last_sync' => now(),
+                    ]
+                );
+            }
+            $sekolah = Sekolah::updateOrCreate(
+                ['sekolah_id' => $set_data->sekolah_id],
+                [
+                    'npsn' 					=> $set_data->npsn,
+                    'nss' 					=> $set_data->nss,
+                    'nama' 					=> $set_data->nama,
+                    'alamat' 				=> $set_data->alamat_jalan,
+                    'desa_kelurahan'		=> $set_data->desa_kelurahan,
+                    'kode_wilayah'			=> $kode_wilayah,
+                    'kecamatan' 			=> $kecamatan,
+                    'kabupaten' 			=> $kabupaten,
+                    'provinsi' 				=> $provinsi,
+                    'kode_pos' 				=> $set_data->kode_pos,
+                    'lintang' 				=> $set_data->lintang,
+                    'bujur' 				=> $set_data->bujur,
+                    'no_telp' 				=> $set_data->nomor_telepon,
+                    'no_fax' 				=> $set_data->nomor_fax,
+                    'email' 				=> $set_data->email,
+                    'website' 				=> $set_data->website,
+                    'status_sekolah'		=> $set_data->status_sekolah,
+                    'bentuk_pendidikan_id'  => $set_data->bentuk_pendidikan_id,
+                    'last_sync'				=> now(),
+                ]
+            );
+            $semester = Semester::where('periode_aktif', 1)->first();
+            $user = User::create([
+                'sekolah_id' => $sekolah->sekolah_id,
+                'name' => 'Administrator',
+                'email' => $email,
+                'password' => $password,
+                'last_sync'	=> now(),
+            ]);
+            $adminRole = Role::where('name', 'admin')->first();
+            $team = Team::updateOrCreate([
+                'name' => $semester->nama,
+                'display_name' => $semester->nama,
+                'description' => $semester->nama,
+            ]);
+            $user->addRole($adminRole, $team);
+            $output = [
+                'icon' => 'tabler-check',
+                'color' => 'success',
+                'title' => 'Berhasil!',
+                'text' => 'URL e-Rapor SMK v8 berhasil disimpan',
+            ]; 
+        } else {
+            $output = [
+                'color' => 'error',
+                'icon' => 'tabler-xbox-x',
+                'title' => 'Gagal!',
+                'text' => 'Sekolah tidak ditemukan',
+            ];
+        }
+        return $output;
     }
 }

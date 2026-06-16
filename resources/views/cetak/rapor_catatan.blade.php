@@ -145,15 +145,15 @@ if($get_siswa->rombongan_belajar->tingkat == 10){
 	<tr>
 	<tr>
 		<td>Sakit</td>
-		<td> : {{($get_siswa->kehadiran) ? $get_siswa->kehadiran->sakit??0 : 0}} hari</td>
+		<td> : {{(!$get_siswa->kehadiran) ? '-' : $get_siswa->kehadiran->sakit}} hari</td>
 	</tr>
 	<tr>
 		<td>Izin</td>
-		<td> : {{($get_siswa->kehadiran) ? $get_siswa->kehadiran->izin??0 : 0}} hari</td>
+		<td> : {{(!$get_siswa->kehadiran) ? '-' : $get_siswa->kehadiran->izin}} hari</td>
 	</tr>
 	<tr>
 		<td>Tanpa Keterangan</td>
-		<td> : {{($get_siswa->kehadiran) ? $get_siswa->kehadiran->alpa??0 : 0}} hari</td>
+		<td> : {{(!$get_siswa->kehadiran) ? '-' : $get_siswa->kehadiran->alpa}} hari</td>
 	</tr>
 	</tr>
 </table>

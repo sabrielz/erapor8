@@ -12,6 +12,13 @@ onMounted(async () => {
 const loading = ref({
   body: false,
 })
+const downloading = ref({
+  'rapor-cover': false,
+  'rapor-akademik': false,
+  'rapor-tengah-semester': false,
+  'rapor-p5': false,
+  'rapor-pelengkap': false,
+})
 const defaultForm = ref({
   user_id: $user.user_id,
   guru_id: $user.guru_id,
@@ -52,6 +59,30 @@ const fetchData = async () => {
     loading.value.body = false;
   }
 }
+const downloadZip = async (type) => {
+  downloading.value[type] = true
+  try {
+    const params = new URLSearchParams({
+      type,
+      sekolah_id: defaultForm.value.sekolah_id,
+      semester_id: defaultForm.value.semester_id,
+      guru_id: defaultForm.value.guru_id,
+    })
+    const link = document.createElement('a')
+    link.href = `/cetak/download-zip-rapor?${params.toString()}`
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } catch (error) {
+    console.error(error)
+  } finally {
+    // Delay reset karena download dimulai di tab/window baru
+    setTimeout(() => {
+      downloading.value[type] = false
+    }, 3000)
+  }
+}
 </script>
 <template>
   <VCard>
@@ -65,6 +96,51 @@ const fetchData = async () => {
       </VCardText>
     </template>
     <template v-else>
+      <VCardText class="d-flex flex-wrap gap-3 pb-4" v-if="arrayData.siswa.length">
+        <VBtn
+          color="success"
+          prepend-icon="tabler-download"
+          :loading="downloading['rapor-cover']"
+          @click="downloadZip('rapor-cover')"
+        >
+          Download Semua Halaman Depan
+        </VBtn>
+        <VBtn
+          color="warning"
+          prepend-icon="tabler-download"
+          :loading="downloading['rapor-akademik']"
+          @click="downloadZip('rapor-akademik')"
+        >
+          Download Semua Rapor Akademik
+        </VBtn>
+        <VBtn
+          v-if="defaultForm.rapor_pts"
+          color="primary"
+          prepend-icon="tabler-download"
+          :loading="downloading['rapor-tengah-semester']"
+          @click="downloadZip('rapor-tengah-semester')"
+        >
+          Download Semua Rapor Tengah Semester
+        </VBtn>
+        <VBtn
+          v-if="defaultForm.merdeka && !defaultForm.is_new_ppa"
+          color="info"
+          prepend-icon="tabler-download"
+          :loading="downloading['rapor-p5']"
+          @click="downloadZip('rapor-p5')"
+        >
+          Download Semua Rapor P5
+        </VBtn>
+        <VBtn
+          color="error"
+          prepend-icon="tabler-download"
+          :loading="downloading['rapor-pelengkap']"
+          @click="downloadZip('rapor-pelengkap')"
+        >
+          Download Semua Dokumen Pendukung
+        </VBtn>
+      </VCardText>
+      <VDivider v-if="arrayData.siswa.length" />
       <VTable class="text-no-wrap" v-if="arrayData.siswa.length">
         <thead>
           <tr>
@@ -122,3 +198,4 @@ const fetchData = async () => {
     </template>
   </VCard>
 </template>
+

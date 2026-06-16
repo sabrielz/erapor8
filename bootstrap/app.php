@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->group('auth.apikey', [
             ApiKeyMiddleware::class,
         ]);
+        $middleware->remove([\Illuminate\Foundation\Http\Middleware\TrimStrings::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

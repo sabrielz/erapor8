@@ -145,19 +145,19 @@ const onSubmit = () => {
         <VCardText>
           <VForm ref="refVForm" @submit.prevent="onSubmit">
             <VRow>
-              <!-- Username -->
+              <!-- Username >
               <VCol cols="12">
                 <AppTextField v-model="form.npsn" :rules="[requiredValidator]" autofocus label="NPSN" placeholder="NPSN"
                   :error-messages="failed.npsn" required />
-              </VCol>
+              </VCol-->
 
-              <!-- email -->
+              <!-- email >
               <VCol cols="12">
                 <AppTextField v-model="form.email" :rules="[requiredValidator, emailValidator]" label="Email"
                   type="email" placeholder="Email Admin Dapodik" :error-messages="failed.email" required />
-              </VCol>
+              </VCol-->
 
-              <!-- password -->
+              <!-- password >
               <VCol cols="12">
                 <AppTextField v-model="form.password" :rules="[requiredValidator]" label="Password"
                   placeholder="············" :type="isPasswordVisible ? 'text' : 'password'" autocomplete="password"
@@ -169,8 +169,13 @@ const onSubmit = () => {
                 <VBtn block type="submit" class="mt-6" :loading="loadingButton" :disabled="loadingButton">
                   Register
                 </VBtn>
+              </VCol-->
+              <VCol cols="12">
+                <VAlert type="warning">
+                  Form Registrasi ditutup. Proses Registrasi hanya melalui aplikasi
+                  Synchronizer v.2. Silahkan unduh <a href="https://s.id/eRaporSMK8154" target="_blank">disini</a>
+                </VAlert>
               </VCol>
-
               <!-- create account -->
               <VCol cols="12" class="text-center text-base">
                 <span class="d-inline-block">Telah terdaftar?</span>
